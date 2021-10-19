@@ -1,0 +1,11 @@
+# Jetbrains files
+.idea
+.idea/
+
+# Other
+.DS_Store
+node_modules/
+build/
+.helm/
+.vscode/
+coverage/
