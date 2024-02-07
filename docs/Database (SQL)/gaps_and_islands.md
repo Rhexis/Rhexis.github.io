@@ -1,84 +1,125 @@
-# **Gaps & Islands**
+# **Gaps & Islands (Part 1)**
 
-!!! info "note"
-    
-    The SQL here was tested in Snowflake. Solution needs explanation.
-
-## **Situation:**
-You have many sensors which report their status on the hour when their state changes.
-Sometimes the sensors will report their state even when the state hasn't changed.
-
-These sensors can be in one of three states:
-
-1. ACTIVE
-2. IN-ACTIVE
-3. NO-SIGNAL
-
-Lets generate some data:
+## Setup
 ~~~ sql
-WITH RAW_SENSOR_DATA AS (
-    SELECT
-        UNIFORM(1, 1000, RANDOM()) AS ID,
-        CASE UNIFORM(1, 3, RANDOM())
-            WHEN 1 THEN 'ACTIVE'
-            WHEN 2 THEN 'IN-ACTIVE'
-            WHEN 3 THEN 'NO-SIGNAL'
-            END AS STATE,
-        DATEADD(HOUR, UNIFORM(1, 10000, RANDOM()), '2000-01-01 00:00:00.000 -0800') AS RECORDED_AT_TIMESTAMP
-    FROM TABLE(GENERATOR(rowCount => 10000))
-)
-SELECT *
-FROM RAW_SENSOR_DATA;
+CREATE TABLE CARDS (
+    SUIT STRING,
+    VALUE INTEGER
+);
+INSERT INTO CARDS
+VALUES
+('HEARTS', 2),
+('HEARTS', 3),
+('HEARTS', 4),
+('HEARTS', 6),
+('HEARTS', 8),
+('HEARTS', 9),
+('HEARTS', 10);
 ~~~
-[![Raw Sensor Data](raw_sensor_data.png)](raw_sensor_data.png)
 
-## **Requirement:**
-Shrink the records down into a list of timeframes showing when each sensor was in what state.
-
-Your output should have the following columns:
-
-* ID
-* STATE
-* VALID_FROM_TIMESTAMP
-* VALID_TILL_TIMESTAMP
-
-The latest state of each sensor should have a `VALID_TILL_TIMESTAMP` that is `null`.
-
-## **Solution:**
-
+## Detecting Gaps
 ~~~ sql
-WITH RAW_SENSOR_DATA AS (
+SELECT
+    SUIT,
+    VALUE,
+    ROW_NUMBER() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS ROW_NUM
+FROM CARDS;
+~~~
+
+We know that in a single suit that there is 13 cards, if we check `MAX(ROW_NUM)` 
+we can see that it's less than our expected value, therefore this is an indicator of gaps.
+
+![detecting_gaps.png](detecting_gaps.png)
+
+## Identifying Islands
+~~~ sql
+SELECT
+    SUIT,
+    VALUE,
+    ROW_NUMBER() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS ROW_NUM,
+    VALUE - ROW_NUMBER() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS ISLAND
+FROM CARDS;
+~~~
+
+By subtracting the row number from the card value we can see where our islands are.
+
+![identifying_islands.png](identifying_islands.png)
+
+## Managing Duplicates
+Unfortunately when it comes to data, we don't always have perfect data sources, 
+so what happens if duplicates are present?
+~~~ sql
+INSERT INTO CARDS
+VALUES
+('HEARTS', 3),
+('HEARTS', 6),
+('HEARTS', 6),
+('HEARTS', 10);
+~~~
+
+Here we can see that if our data contains duplicates then row number's usefulness breaks down however in SQL
+however there is more than one ranking function we could use, how about dense rank?
+~~~ sql
+SELECT
+    SUIT,
+    VALUE,
+    ROW_NUMBER() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS ROW_NUM,
+    VALUE - ROW_NUMBER() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS ROW_NUM_ISLAND,
+    VALUE - DENSE_RANK() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS DENSE_RANK_ISLAND
+FROM CARDS;
+~~~
+As you can see, dense rank is able to work where row number fails.
+
+![managing_duplicates.png](managing_duplicates.png)
+
+## Grouping Islands
+If we group the islands together we start to get a clearer picture of what we have verses what we don't have.
+~~~ sql
+WITH ISLANDS AS (
     SELECT
-        UNIFORM(1, 1000, RANDOM()) AS ID,
-        CASE UNIFORM(1, 3, RANDOM())
-            WHEN 1 THEN 'ACTIVE'
-            WHEN 2 THEN 'IN-ACTIVE'
-            WHEN 3 THEN 'NO-SIGNAL'
-            END AS STATE,
-        DATEADD(HOUR, UNIFORM(1, 10000, RANDOM()), '2000-01-01 00:00:00.000 -0800') AS RECORDED_AT_TIMESTAMP
-    FROM TABLE(GENERATOR(rowCount => 10000))
-),
-RANKED AS (
-  SELECT
-    *,
-    DENSE_RANK() OVER (PARTITION BY ID ORDER BY RECORDED_AT_TIMESTAMP)
-    - DENSE_RANK() OVER (PARTITION BY ID, STATE ORDER BY RECORDED_AT_TIMESTAMP) AS SEQ
-  FROM RAW_SENSOR_DATA
-),
-DEDUPE AS (
-  SELECT
-    ID,
-    STATE,
-    MIN(RECORDED_AT_TIMESTAMP) AS RECORDED_AT_TIMESTAMP
-  FROM RANKED
-  group by ID, STATE, SEQ
+        SUIT,
+        VALUE,
+        VALUE - DENSE_RANK() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS ISLAND
+    FROM CARDS
 )
 SELECT
-    ID,
-    STATE,
-    RECORDED_AT_TIMESTAMP AS VALID_FROM_TIMESTAMP,
-    LEAD(RECORDED_AT_TIMESTAMP) OVER (PARTITION BY ID ORDER BY RECORDED_AT_TIMESTAMP) AS VALID_TILL_TIMESTAMP
-FROM DEDUPE
-ORDER BY ID, VALID_FROM_TIMESTAMP;
+    SUIT,
+    MIN(VALUE) AS ISLAND_START,
+    MAX(VALUE) AS ISLAND_END,
+    MAX(VALUE) - MIN(VALUE) + 1 AS ISLAND_LENGTH,
+    COUNT(SUIT, VALUE) AS CARD_COUNT,
+    COUNT(SUIT, VALUE) - COUNT(DISTINCT SUIT, VALUE) AS DUPLICATE_CARDS
+FROM ISLANDS
+GROUP BY SUIT, ISLAND;
 ~~~
-[![solution.png](solution.png)](solution.png)
+
+![grouping_islands.png](grouping_islands.png)
+
+## Identifying gaps
+Now that we have identified the islands, what about the gaps? How big are they, how many are there?
+~~~ sql
+WITH BOUNDED AS (
+    SELECT SUIT, VALUE
+    FROM CARDS
+    UNION
+    SELECT 'HEARTS' AS SUIT, 0 AS VALUE
+    UNION
+    SELECT 'HEARTS' AS SUIT, 14 AS VALUE
+),
+OFFSETS AS (
+    SELECT
+        SUIT,
+        VALUE,
+        LEAD(VALUE) OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS NEXT_VALUE
+    FROM BOUNDED
+)
+SELECT
+    SUIT,
+    VALUE + 1 AS GAP_START,
+    NEXT_VALUE - 1 AS GAP_END,
+    GAP_END - GAP_START + 1 AS MISSING_CARD_COUNT
+FROM OFFSETS
+WHERE GAP_END >= GAP_START;
+~~~
+
+![identifying_gaps.png](identifying_gaps.png)
