@@ -11,7 +11,9 @@ In my spare time I also like to dabble in Strongman and have the occasional whis
 Apparently Software Engineers make blogs or something? So here is mine I guess. 
 
 <br/>
-
 Hopefully something here can be of use to you.
 
--- Rhexis
+\- Rhexis
+
+* [LinkedIn](https://au.linkedin.com/in/strong-and-pretty)
+* [Github](https://github.com/Rhexis)

@@ -11,7 +11,7 @@ theme:
   palette:
     scheme: slate
     primary: green
-    accent: pink
+    accent: light green
   icon:
     repo: fontawesome/brands/github
   features:
