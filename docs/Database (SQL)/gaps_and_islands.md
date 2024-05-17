@@ -1,6 +1,12 @@
 # **Gaps & Islands (Part 1)**
 
+**Gaps:** Absense of values within a sequence
+
+**Islands:** Unbroken sequences separated by gaps
+
 ## Setup
+In order to attempt to explain this sql challenge I've decided to use a deck of cards, something
+we all can recognise, as my analogy.
 ~~~ sql
 CREATE TABLE CARDS (
     SUIT STRING,
@@ -27,7 +33,7 @@ FROM CARDS;
 ~~~
 
 We know that in a single suit that there is 13 cards, if we check `MAX(ROW_NUM)` 
-we can see that it's less than our expected value, therefore this is an indicator of gaps.
+we can see that it's less than our expected value, therefore this is one indicator of gaps.
 
 ![detecting_gaps.png](detecting_gaps.png)
 
@@ -63,7 +69,8 @@ however there is more than one ranking function we could use, how about dense ra
 SELECT
     SUIT,
     VALUE,
-    ROW_NUMBER() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS ROW_NUM,
+    ROW_NUMBER() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS ROW_NUMBER_VALUE,
+    DENSE_RANK() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS DENSE_RANK_VALUE,
     VALUE - ROW_NUMBER() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS ROW_NUM_ISLAND,
     VALUE - DENSE_RANK() OVER (PARTITION BY SUIT ORDER BY VALUE ASC) AS DENSE_RANK_ISLAND
 FROM CARDS;
@@ -71,6 +78,11 @@ FROM CARDS;
 As you can see, dense rank is able to work where row number fails.
 
 ![managing_duplicates.png](managing_duplicates.png)
+
+**Row Number:** Returns an incrementing value for all rows sequentially
+
+**Dense Rank:** Returns an incrementing value for all rows sequentially
+however rows with the same ordering & partitioning will end up with the same value
 
 ## Grouping Islands
 If we group the islands together we start to get a clearer picture of what we have verses what we don't have.
@@ -121,5 +133,8 @@ SELECT
 FROM OFFSETS
 WHERE GAP_END >= GAP_START;
 ~~~
+
+If we set the bounds for our values, 1-13 (inclusive), then we can programmatically work out 
+where each gap starts & ends.
 
 ![identifying_gaps.png](identifying_gaps.png)
