@@ -1,6 +1,6 @@
 # **Gaps & Islands (Part 1)**
 
-**Gaps:** Absense of values within a sequence
+**Gaps:** Absence of values within a sequence
 
 **Islands:** Unbroken sequences separated by gaps
 
