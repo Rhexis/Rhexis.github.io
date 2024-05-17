@@ -1,12 +1,39 @@
-# **Gaps & Islands (Part 1)**
+# **Mastering SQL Challenges: Gaps & Islands**
+In the vast landscape of SQL, mastering its intricacies often involves tackling unique challenges that go
+beyond simple queries. One such challenge that frequently perplexes SQL practitioners is dealing with 
+"gaps and islands". While the term might sound like something out of a nautical adventure, in the realm
+of databases, it refers to a common problem of identifying breaks (gaps) and contiguous sequences
+(islands) within a dataset.
 
-**Gaps:** Absence of values within a sequence
+## **What are gaps and islands?**
+Before delving into the solutions, let's clarify what we mean by "gaps" and "islands" in the context of SQL.
 
-**Islands:** Unbroken sequences separated by gaps
+**Gaps:** The absence of values within a sequence. For instance, imagine a table of timestamps representing events.
+If there's a gap between two timestamps, it indicates that there were no events during that period.
 
-## Setup
-In order to attempt to explain this sql challenge I've decided to use a deck of cards, something
-we all can recognise, as my analogy.
+**Islands:** An unbroken sequences separated by gaps. In the same table of timestamps, islands would represent
+uninterrupted periods where events occurred continuously.
+
+## **The Challenge**
+So, why are gaps and islands a challenge? The complexity arises from the fact that SQL operates on sets of data
+which aren't inherently ordered. Consequently, identifying sequential patterns isn't straightforward, especially 
+when dealing with large datasets or data with irregular intervals.
+
+### **Possible strategies**
+Fortunately, SQL offers several techniques to address challenges effectively. Here are some common approaches:
+
+1. **Analytic Functions:** Functions like `ROW_NUMBER()`, `DENSE_RANK()`, `LEAD()` and `LAG()` are invaluable
+   for identifying and categorising sequences of data.
+2. **Recursive CTEs (Common Table Expressions):** While potentially complex and inefficient, they allow for
+   iterative processing of data, making them useful for tasks involving hierarchical or sequential structures.
+3. **Self-Joins:** Another appreach involves self-joining datasets on themselves, comparing adjacent rows to
+   detect transitions between gaps and islands. While this method can be resource-intensive for large datasets, 
+   it provides a straightforward way to visualise and understand the data's sequential patterns.
+
+### **Setup**
+Lets illustrate some of these techniques with a practical example.
+
+Suppose we have a table which is representative of a deck of cards.
 ~~~ sql
 CREATE TABLE CARDS (
     SUIT STRING,
@@ -23,7 +50,7 @@ VALUES
 ('HEARTS', 10);
 ~~~
 
-## Detecting Gaps
+### **Detecting Gaps**
 ~~~ sql
 SELECT
     SUIT,
@@ -37,7 +64,7 @@ we can see that it's less than our expected value, therefore this is one indicat
 
 ![detecting_gaps.png](detecting_gaps.png)
 
-## Identifying Islands
+### **Identifying Islands**
 ~~~ sql
 SELECT
     SUIT,
@@ -51,7 +78,7 @@ By subtracting the row number from the card value we can see where our islands a
 
 ![identifying_islands.png](identifying_islands.png)
 
-## Managing Duplicates
+### **Managing Duplicates**
 Unfortunately when it comes to data, we don't always have perfect data sources, 
 so what happens if duplicates are present?
 ~~~ sql
@@ -84,7 +111,7 @@ As you can see, dense rank is able to work where row number fails.
 **Dense Rank:** Returns an incrementing value for all rows sequentially
 however rows with the same ordering & partitioning will end up with the same value
 
-## Grouping Islands
+### **Grouping Islands**
 If we group the islands together we start to get a clearer picture of what we have verses what we don't have.
 ~~~ sql
 WITH ISLANDS AS (
@@ -107,7 +134,7 @@ GROUP BY SUIT, ISLAND;
 
 ![grouping_islands.png](grouping_islands.png)
 
-## Identifying gaps
+### **Identifying gaps**
 Now that we have identified the islands, what about the gaps? How big are they, how many are there?
 ~~~ sql
 WITH BOUNDED AS (
@@ -138,3 +165,12 @@ If we set the bounds for our values, 1-13 (inclusive), then we can programmatica
 where each gap starts & ends.
 
 ![identifying_gaps.png](identifying_gaps.png)
+
+## **Conclusion**
+Mastering SQL's capabilities for handling challenges like gaps and islands opens up a world of possibilities
+for data analysis and manipulation. By leveraging analytical functions, recursive queries and other advanced SQL
+features, you can efficiently tackle complex problems and extract valuable insights from your datasets.
+
+Whether you're working with time-series data, event logs or any other sequential data structures, understanding 
+and implementing these techniques will empower you to navigate the seas of SQL with confidence, charting a course
+toward more insightful and efficient analysis of your data.
