@@ -11,7 +11,7 @@ Before delving into the solutions, let's clarify what we mean by "gaps" and "isl
 **Gaps:** The absence of values within a sequence. For instance, imagine a table of timestamps representing events.
 If there's a gap between two timestamps, it indicates that there were no events during that period.
 
-**Islands:** An unbroken sequences separated by gaps. In the same table of timestamps, islands would represent
+**Islands:** Unbroken sequences separated by gaps. In the same table of timestamps, islands would represent
 uninterrupted periods where events occurred continuously.
 
 ## **The Challenge**
